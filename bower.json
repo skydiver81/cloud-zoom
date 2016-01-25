@@ -2,7 +2,7 @@
   "name": "cloud-zoom",
   "version": "1.0",
   "main": [
-    "cloudzoom.js"
+    "cloud-zoom.js"
   ],
   "ignore": [
   ],
