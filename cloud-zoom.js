@@ -231,7 +231,7 @@
                 var maxHeight = hqImage.css('max-height');
 
                 $('#cloud-zoom-big').hide();
-                hqImage.animate({maxHeight: "700px", maxWidth: "700px"}, 800);
+                hqImage.animate({maxHeight: maxHeight, maxWidth: maxWidth}, 800);
 
                 // Hide preview on click
                 $(document).bind('click', this, function(e) {
