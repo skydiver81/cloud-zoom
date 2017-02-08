@@ -7,6 +7,14 @@
 //////////////////////////////////////////////////////////////////////////////////
 (function($) {
 
+    var hqImageContainer = $('#hqImageContainer');
+    var hqImage = hqImageContainer.find('img');
+    var initialMaxWidth = parseInt(hqImageContainer.css('max-width'));
+    var initialMaxHeight = initialMaxWidth;
+    var hqImageSrc = $('#morePicsContainer').find('li.pic > a');
+    var hqImages = {};
+    var iSlideWrapperPos = 0;
+
     // $(document).ready(function () {
     //     $('.cloud-zoom, .cloud-zoom-gallery').CloudZoom();
     // });
@@ -39,6 +47,7 @@
         var mx,
                 my;
         var ctx = this, zw;
+
         // Display an image loading message. This message gets deleted when the images have loaded and the zoom init function is called.
         // We add a small delay before the message is displayed to avoid the message flicking on then off again virtually immediately if the
         // images load really fast, e.g. from the cache.
@@ -178,12 +187,70 @@
             // Remove loading message (if present);
             $('.cloud-zoom-loading', jWin.parent()).remove();
 
+            hqImageContainer.html('<div class="slide-wrapper"></div>');
+            
+            //
+            var slidePos = (((iSlideWrapperPos + 1) * initialMaxWidth) * -1) + initialMaxWidth;
+            $('.slide-wrapper').css({
+                'height': initialMaxHeight + 'px',
+                'width': (initialMaxWidth * hqImageSrc.size())  + 'px',
+                'margin-left': slidePos + 'px'
+            });
+
+            var navLeft = $('<div class="hqImageNav navLeft"><a><i class="fa fa-angle-left"></i></a></div>');
+            var navRight = $('<div class="hqImageNav navRight"><a><i class="fa fa-angle-right"></i></a></div>');
+
+            if(iSlideWrapperPos == 0){
+                navLeft.hide();
+            } else {
+                navLeft.show();
+            }
+            if(iSlideWrapperPos == (hqImageSrc.size() - 1)){
+                navRight.hide();
+            } else {
+                navRight.show();
+            }
+
+            // calculate if left nav has to be shown, depending on horizontal scroll state
+            navLeft.bind('click', function(){
+                $('.hqImageNav').show();
+                if(slidePos < 0){
+                    slidePos += initialMaxWidth;
+                    $('.slide-wrapper').stop().animate({marginLeft: slidePos}, 500);
+                }
+                var startReached = (slidePos == 0);
+                if(startReached){
+                    $(this).hide();
+                }
+
+            });
+
+            // calculate if right nav has to be shown, depending on horizontal scroll state
+            navRight.bind('click', function(){
+                $('.hqImageNav').show();
+                if(slidePos > (initialMaxWidth * (hqImageSrc.size() - 1) * -1)){
+                    slidePos -= initialMaxWidth;
+                    $('.slide-wrapper').stop().animate({marginLeft: slidePos}, 500);
+                }
+                var endReached = (slidePos == (initialMaxWidth * (hqImageSrc.size() - 1) * -1));
+                if(endReached){
+                    $(this).hide();
+                }
+            });
+
+            /*
+            * initialize hqImage objects
+            * */
+            $.each(hqImageSrc, function(index, elem){
+                hqImages[index] = $(elem).attr('href');
+                hqImageContainer.find('.slide-wrapper').append('<div><img src="' + $(elem).attr('href') + '" /></div>');
+            });
 
             /* Add a box (mouseTrap) over the small image to trap mouse events.
-             It has priority over zoom window to avoid issues with inner zoom.
-             We need the dummy background image as IE does not trap mouse events on
-             transparent parts of a div.
-             */
+            It has priority over zoom window to avoid issues with inner zoom.
+            We need the dummy background image as IE does not trap mouse events on
+            transparent parts of a div.
+            */
             if (opts.centerXY) {
                 var positionAdj_x = sImg.position().left + "px";
                 var positionAdj_y = sImg.position().top + "px";
@@ -218,31 +285,44 @@
                 return false;
             });
 
+            hqImageContainer.prepend(navRight).prepend(navLeft);
+
             $mouseTrap.bind('click', this, function(event) {
 
-                var jWinContainer = jWin.parent();
+                    var jWinContainer = jWin.parent();
 
-                var hqImageContainer = $('#hqImageContainer');
+                    hqImage.css({maxHeight: 0, maxWidth: 0});
+                    hqImage.attr('src', zoomImage.src);
+                    hqImageContainer.css('max-width','0px').show();
 
-                hqImageContainer.html('<img src="' + zoomImage.src + '" />').fadeIn();
+                    $('#cloud-zoom-big').hide();
 
-                var hqImage = hqImageContainer.find('img');
-                var maxWidth = hqImage.css('max-width');
-                var maxHeight = hqImage.css('max-height');
+                    hqImageContainer.stop().animate({
+                            maxHeight: initialMaxHeight,
+                            maxWidth: initialMaxWidth
+                        },
+                        800
+                    );
 
-                $('#cloud-zoom-big').hide();
-                hqImage.animate({maxHeight: maxHeight, maxWidth: maxWidth}, 800);
+                    // Hide preview on click
+                    $(document).bind('click', this, function(e) {
+                        //console.log($(e.target));
+                        
+                        var isImageTarget = $(e.target).parents('.slide-wrapper').length;
+                        var isImageNavTarget = $(e.target).parents('.hqImageNav').length;
 
-                // Hide preview on click
-                $(document).bind('click', this, function(e) {
-                    if (!$(e.target).hasClass('mousetrap')) {
-                        hqImage.animate({maxHeight: maxHeight, maxWidth: maxWidth}, 700, function() {
-                            hqImageContainer.fadeOut();
-                        });
-                    }
-                });
+                        if (hqImageContainer.width() > 0 &&
+                            !$(e.target).hasClass('mousetrap') &&
+                            !isImageTarget && !isImageNavTarget) {
+                                hqImageContainer.animate({
+                                    maxHeight: 0,
+                                    maxWidth: 0
+                                }, 200);
+                        }
+                    });
 
             });
+
             //////////////////////////////////////////////////////////////////////
             $mouseTrap.bind('mouseenter', this, function(event) {
                 mx = event.pageX;
@@ -427,6 +507,9 @@
                     $('#' + data.useZoom).attr('href', event.data.attr('href'));
                     // Change the small image to point to the new small image.
                     $('#' + data.useZoom + ' img').attr('src', event.data.data('relOpts').smallImage);
+
+                    iSlideWrapperPos = $('.otherPictures li.pic').index($(this).parent());
+
                     // Init a new zoom with the new images.
                     $('#' + event.data.data('relOpts').useZoom).CloudZoom();
                     return false;
